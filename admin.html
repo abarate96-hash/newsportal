@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NewsPortal Admin</title>
+  <style>
+    body{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;background:#0f0f23;color:#fff;margin:0}
+    .wrap{max-width:1100px;margin:0 auto;padding:24px}
+    h1{font-size:1.8rem;margin:0 0 16px}
+    .card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:16px;margin:12px 0}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    label{display:block;font-size:.9rem;color:#cfd3dc;margin:6px 0 4px}
+    input,textarea,select{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.25);color:#fff}
+    textarea{min-height:80px}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+    .btn{background:linear-gradient(45deg,#ff6b6b,#4ecdc4);border:none;color:#fff;padding:10px 16px;border-radius:999px;cursor:pointer;font-weight:700}
+    .btn.sec{background:rgba(255,255,255,.12)}
+    .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:8px 0}
+    .muted{color:#9aa0a6;font-size:.9rem}
+    .list-item{border:1px dashed rgba(255,255,255,.2);border-radius:10px;padding:12px;margin:8px 0}
+    .divider{height:1px;background:rgba(255,255,255,.15);margin:16px 0}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>NewsPortal Admin</h1>
+    <div class="card">
+      <div class="bar">
+        <div>
+          <strong>Data file</strong>
+          <div class="muted">Load and edit content.json. Download to save changes.</div>
+        </div>
+        <div class="row">
+          <input type="file" id="filePicker" accept="application/json" />
+          <button class="btn" id="downloadBtn">Download content.json</button>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="row">
+        <label>Quick password (optional UI lock)</label>
+        <input type="password" id="lockPass" placeholder="Set or enter to unlock UI" />
+        <button class="btn sec" id="lockToggle">Lock/Unlock</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="bar">
+        <strong>Latest News</strong>
+        <button class="btn" id="addNews">+ Add News</button>
+      </div>
+      <div id="newsList"></div>
+    </div>
+
+    <div class="card">
+      <div class="bar">
+        <strong>Video Podcasts</strong>
+        <button class="btn" id="addVideo">+ Add Video</button>
+      </div>
+      <div id="videoList"></div>
+    </div>
+
+    <div class="card">
+      <div class="bar">
+        <strong>Export</strong>
+        <button class="btn" id="downloadBtn2">Download content.json</button>
+      </div>
+      <div class="muted">After downloading, replace the existing content.json in your project to publish changes.</div>
+    </div>
+  </div>
+
+  <script>
+    const state = { data: { news: [], videos: [] }, locked: false };
+
+    const els = {
+      filePicker: document.getElementById('filePicker'),
+      newsList: document.getElementById('newsList'),
+      videoList: document.getElementById('videoList'),
+      addNews: document.getElementById('addNews'),
+      addVideo: document.getElementById('addVideo'),
+      downloadBtn: document.getElementById('downloadBtn'),
+      downloadBtn2: document.getElementById('downloadBtn2'),
+      lockPass: document.getElementById('lockPass'),
+      lockToggle: document.getElementById('lockToggle'),
+    };
+
+    function render() {
+      // News
+      els.newsList.innerHTML = '';
+      state.data.news.forEach((n, i) => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+        div.innerHTML = `
+          <div class="grid">
+            <div>
+              <label>Title</label>
+              <input ${disabled()} value="${esc(n.title)}" data-k="title" data-i="${i}">
+            </div>
+            <div>
+              <label>Category</label>
+              <input ${disabled()} value="${esc(n.category)}" data-k="category" data-i="${i}">
+            </div>
+            <div>
+              <label>Time</label>
+              <input ${disabled()} value="${esc(n.time)}" data-k="time" data-i="${i}">
+            </div>
+            <div>
+              <label>Excerpt</label>
+              <textarea ${disabled()} data-k="excerpt" data-i="${i}">${esc(n.excerpt)}</textarea>
+            </div>
+            <div>
+              <label>Article link (href)</label>
+              <input ${disabled()} value="${esc(n.href)}" data-k="href" data-i="${i}">
+            </div>
+          </div>
+          <div class="bar">
+            <span class="muted">Item #${i+1}</span>
+            <div class="row">
+              <button class="btn sec" data-act="up" data-i="${i}">▲</button>
+              <button class="btn sec" data-act="down" data-i="${i}">▼</button>
+              <button class="btn sec" data-act="deleteNews" data-i="${i}">Delete</button>
+            </div>
+          </div>
+        `;
+        els.newsList.appendChild(div);
+      });
+
+      // Videos
+      els.videoList.innerHTML = '';
+      state.data.videos.forEach((v, i) => {
+        const div = document.createElement('div');
+        div.className = 'list-item';
+        div.innerHTML = `
+          <div class="grid">
+            <div>
+              <label>YouTube ID</label>
+              <input ${disabled()} value="${esc(v.youtubeId)}" data-k="youtubeId" data-i="${i}" data-type="video">
+            </div>
+            <div>
+              <label>Title</label>
+              <input ${disabled()} value="${esc(v.title)}" data-k="title" data-i="${i}" data-type="video">
+            </div>
+            <div>
+              <label>Channel</label>
+              <input ${disabled()} value="${esc(v.channel)}" data-k="channel" data-i="${i}" data-type="video">
+            </div>
+            <div>
+              <label>Description</label>
+              <textarea ${disabled()} data-k="description" data-i="${i}" data-type="video">${esc(v.description)}</textarea>
+            </div>
+          </div>
+          <div class="bar">
+            <span class="muted">Item #${i+1}</span>
+            <div class="row">
+              <button class="btn sec" data-act="upVideo" data-i="${i}">▲</button>
+              <button class="btn sec" data-act="downVideo" data-i="${i}">▼</button>
+              <button class="btn sec" data-act="deleteVideo" data-i="${i}">Delete</button>
+            </div>
+          </div>
+        `;
+        els.videoList.appendChild(div);
+      });
+    }
+
+    function disabled(){ return state.locked ? 'disabled' : '' }
+    function esc(s=''){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+    // Load default content.json via fetch (optional)
+    fetch('content.json').then(r=>r.ok?r.json():{news:[],videos:[]}).then(data=>{ state.data = data; render(); }).catch(()=>{});
+
+    // File import
+    els.filePicker.addEventListener('change', e => {
+      const f = e.target.files[0]; if(!f) return;
+      const reader = new FileReader();
+      reader.onload = () => { try { state.data = JSON.parse(reader.result); render(); } catch(e){ alert('Invalid JSON'); } };
+      reader.readAsText(f);
+    });
+
+    // Add items
+    els.addNews.addEventListener('click', ()=>{ state.data.news.push({title:'',category:'',time:'',excerpt:'',href:''}); render(); });
+    els.addVideo.addEventListener('click', ()=>{ state.data.videos.push({youtubeId:'',title:'',channel:'',description:''}); render(); });
+
+    // Delegated updates and actions
+    document.body.addEventListener('input', e => {
+      const i = e.target.getAttribute('data-i');
+      const k = e.target.getAttribute('data-k');
+      const type = e.target.getAttribute('data-type');
+      if(i==null||!k) return;
+      if(type==='video') state.data.videos[i][k] = e.target.value; else state.data.news[i][k] = e.target.value;
+    });
+
+    document.body.addEventListener('click', e => {
+      const act = e.target.getAttribute('data-act');
+      const i = +e.target.getAttribute('data-i');
+      if(!act) return;
+      if(act==='deleteNews'){ state.data.news.splice(i,1); render(); }
+      if(act==='deleteVideo'){ state.data.videos.splice(i,1); render(); }
+      if(act==='up' && i>0){ swap(state.data.news,i,i-1); render(); }
+      if(act==='down' && i<state.data.news.length-1){ swap(state.data.news,i,i+1); render(); }
+      if(act==='upVideo' && i>0){ swap(state.data.videos,i,i-1); render(); }
+      if(act==='downVideo' && i<state.data.videos.length-1){ swap(state.data.videos,i,i+1); render(); }
+    });
+
+    function swap(arr,a,b){ const t = arr[a]; arr[a]=arr[b]; arr[b]=t; }
+
+    // Download JSON
+    function download(){
+      const blob = new Blob([JSON.stringify(state.data,null,2)], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'content.json'; a.click();
+      URL.revokeObjectURL(url);
+    }
+    els.downloadBtn.addEventListener('click', download);
+    els.downloadBtn2.addEventListener('click', download);
+
+    // Basic lock
+    els.lockToggle.addEventListener('click', ()=>{ state.locked = !state.locked; render(); });
+  </script>
+</body>
+</html>
